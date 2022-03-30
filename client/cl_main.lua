@@ -1,4 +1,5 @@
 local QBCore = exports['qb-core']:GetCoreObject()
+local SpawnScooter = false
 
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded')
@@ -20,11 +21,11 @@ end)
 -- Threads
 
 CreateThread(function()
-	RequestModel('a_m_m_prolhost_01')
-	  while not HasModelLoaded('a_m_m_prolhost_01') do
+	RequestModel(Config.PedModel)
+	  while not HasModelLoaded(Config.PedModel) do
 	  Wait(1)
 	end
-	  scooterped = CreatePed(2, 'a_m_m_prolhost_01', Config.PedLocation, false, false) -- change here the cords for the ped 
+	  scooterped = CreatePed(2, Config.PedModel, Config.PedLocation, false, false) -- change here the cords for the ped 
 	  SetPedFleeAttributes(scooterped, 0, 0)
 	  SetPedDiesWhenInjured(scooterped, false)
 	  TaskStartScenarioInPlace(scooterped, "WORLD_HUMAN_STAND_IMPATIENT", 0, true)
@@ -34,9 +35,21 @@ CreateThread(function()
 	  FreezeEntityPosition(scooterped, true)
   end)
 
+CreateThread(function()
+	local scooterblip = AddBlipForCoord(Config.PedLocation)
+	SetBlipAsShortRange(blip, true)
+	SetBlipSprite(scooterblip, 348)
+	SetBlipColour(scooterblip, 60)
+	SetBlipScale(scooterblip, 0.7)
+	SetBlipDisplay(scooterblip, 6)
+	BeginTextCommandSetBlipName('STRING')
+	AddTextComponentString('Scooter Rental')
+	EndTextCommandSetBlipName(scooterblip)
+end)
+
 
 CreateThread(function()
-    exports['qb-target']:AddTargetModel('a_m_m_prolhost_01', {
+    exports['qb-target']:AddTargetModel(Config.PedModel, {
         options = {
             { 
                 type = "client",
@@ -49,7 +62,92 @@ CreateThread(function()
     })
 end)
 
+-- Events
 
+RegisterNetEvent('qb-scooterrentals:client:ScooterMenu', function()
+    local ScooterMenu = {
+        {
+            header = "Scooter Rentals",
+            txt = "Rent a scooter for quick transportion!",
+            isMenuHeader = true,
+        },
+        {
+            header = "Scooter",
+            txt =  "$ ".. Config.ScooterPrice .. "w/ Tax",
+            params = {
+                event = "qb-scooterrentals:client:Spawn",
+                args = {
+					model = Config.ScooterModel
+                }
+			}
+        },
+		{
+            header = "Return Scooter",
+            params = {
+                event = "qb-scooterrentals:client:Return",
+			}
+		},
+		{
+            header = "< Close",
+            params = {
+                event = "qb-menu:client:close",
+			}
+		},
+	}
+    exports['qb-menu']:openMenu(ScooterMenu)
+end)
+
+RegisterNetEvent('qb-scooterrentals:client:Spawn', function(model)
+    local model = Config.ScooterModel
+    local player = PlayerPedId()
+    QBCore.Functions.TriggerCallback('qb-scooterrentals:server:RentCheck', function(CanRent)
+        if CanRent then 
+		QBCore.Functions.Progressbar("grab_scooter", "Pulling out Scooter..", math.random(4000,6000), false, true, {
+			disableMovement = false,
+			disableCarMovement = false,
+			disableMouse = false,
+			disableCombat = false,
+		}, {}, {}, {}, function() -- Done
+			ScooterRentalEmail()
+			QBCore.Functions.SpawnVehicle(model, function(veh)
+				TaskWarpPedIntoVehicle(player, veh, -1)
+				TriggerEvent('vehiclekeys:client:SetOwner', GetVehicleNumberPlateText(aircraft))
+				SetVehicleNumberPlateText(veh, "RENTAL"..tostring(math.random(1000, 9999)))
+				exports[Config.FuelSystem]:SetFuel(veh, 100.0)
+				SetVehicleEngineOn(veh, false, true)
+				SetEntityAsMissionEntity(veh, true, true)
+				SpawnScooter = true
+			end, Config.SpawnLocation, true)
+		end)
+        else
+            QBCore.Functions.Notify("You don't have enough money..", "error", 2500)
+        end
+    end, model)
+end)
+
+
+RegisterNetEvent('qb-scooterrentals:client:Return', function()
+    if SpawnScooter then
+        local Player = QBCore.Functions.GetPlayerData()
+        QBCore.Functions.Notify('Returned Scooter!', 'success')
+        local car = GetVehiclePedIsIn(PlayerPedId(),true)
+        NetworkFadeOutEntity(car, true,false)
+        Citizen.Wait(2000)
+        QBCore.Functions.DeleteVehicle(car)
+    else 
+        QBCore.Functions.Notify("No Scooter near you.", "error")
+    end
+    SpawnScooter = false
+end)
+
+
+function ScooterRentalEmail()
+    TriggerServerEvent('qb-phone:server:sendNewMail', {
+    sender = 'Escapism Travel',
+    subject = 'Scooter Rental',
+    message = 'Thank you for renting a scooter from us! Bring the scooter back with in 24 hours!',
+    })
+end
 
 
 
