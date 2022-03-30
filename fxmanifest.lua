@@ -5,13 +5,13 @@ description 'QB-Rental'
 author 'Hyper'
 version '1.0.0'
 
+shared_scripts {
+    'config.lua'
+}
 
 client_script 'client/*'
 server_script 'server/*'
 
-shared_scripts {
-	'config.lua',
-}
 
 -- Scooter Model
 
