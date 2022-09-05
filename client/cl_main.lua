@@ -37,7 +37,7 @@ CreateThread(function()
 
 CreateThread(function()
 	local scooterblip = AddBlipForCoord(Config.PedLocation)
-	SetBlipAsShortRange(blip, true)
+	SetBlipAsShortRange(scooterblip, true)
 	SetBlipSprite(scooterblip, 348)
 	SetBlipColour(scooterblip, 60)
 	SetBlipScale(scooterblip, 0.7)
